@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RedFlag — Litigation File Intelligence</title>
+    <meta name="description" content="Find every contradiction in your case files before opposing counsel does. RedFlag analyzes documents and cites every finding to source.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f4f1eb;
+            --bg-alt: #ebe7df;
+            --bg-dark: #1a1a1a;
+            --ink: #1a1a1a;
+            --ink-light: #4a4a4a;
+            --ink-muted: #8a8a8a;
+            --ink-on-dark: #f4f1eb;
+            --red: #c45d3a;
+            --red-light: #e8d5ce;
+            --red-dark: #9e3a1a;
+            --success: #2d6a4f;
+            --warning: #b8860b;
+            --border: #d4d0c8;
+            --shadow: rgba(0,0,0,0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        ::selection { background: var(--red); color: var(--bg); }
+
+        body {
+            font-family: 'IBM Plex Mono', monospace;
+            background: var(--bg);
+            color: var(--ink);
+            min-height: 100vh;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .page {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 32px 40px 48px;
+        }
+
+        /* ─── Masthead ─── */
+        .masthead {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--ink);
+            padding-bottom: 20px;
+            margin-bottom: 0;
+        }
+
+        .brand { display: flex; flex-direction: column; }
+
+        .brand-name {
+            font-family: 'Instrument Serif', serif;
+            font-size: 38px;
+            font-weight: 400;
+            letter-spacing: -1px;
+            line-height: 1;
+        }
+
+        .brand-tagline {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2.5px;
+            color: var(--ink-muted);
+            margin-top: 5px;
+        }
+
+        .masthead-right {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--ink-muted);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--ink-muted);
+            flex-shrink: 0;
+        }
+
+        .status-dot.active { background: var(--success); }
+        .status-dot.error  { background: var(--red); }
+
+        /* ─── Progress ─── */
+        .progress-bar {
+            height: 2px;
+            background: var(--border);
+            overflow: hidden;
+            margin-bottom: 36px;
+        }
+
+        .progress-fill { height: 100%; background: var(--red); width: 0%; }
+
+        .progress-bar.active .progress-fill {
+            animation: indeterminate 1.5s infinite;
+        }
+
+        @keyframes indeterminate {
+            0%   { transform: translateX(-100%); width: 30%; }
+            50%  { width: 50%; }
+            100% { transform: translateX(400%); width: 30%; }
+        }
+
+        /* ─── Playground grid ─── */
+        .playground {
+            display: grid;
+            grid-template-columns: 2fr 3fr;
+            gap: 40px;
+            align-items: start;
+        }
+
+        @media (max-width: 960px) {
+            .playground { grid-template-columns: 1fr; }
+            .page { padding: 24px 20px 40px; }
+        }
+
+        /* ─── Left panel ─── */
+        .left-panel { display: flex; flex-direction: column; gap: 28px; }
+
+        .field-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--ink-muted);
+            margin-bottom: 10px;
+        }
+
+        /* Source folder */
+        .folder-display {
+            display: flex;
+            border: 2px solid var(--border);
+            background: var(--bg-alt);
+        }
+
+        .folder-path {
+            flex: 1;
+            padding: 11px 14px;
+            font-size: 12px;
+            color: var(--ink-light);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .folder-btn {
+            background: transparent;
+            border: none;
+            border-left: 1px solid var(--border);
+            padding: 10px 16px;
+            font-family: inherit;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            color: var(--ink);
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .folder-btn:hover { background: var(--ink); color: var(--bg); }
+
+        /* Query */
+        .query-input {
+            display: block;
+            width: 100%;
+            background: var(--bg);
+            border: 2px solid var(--ink);
+            border-bottom: none;
+            padding: 14px 16px;
+            font-family: inherit;
+            font-size: 14px;
+            color: var(--ink);
+            resize: none;
+            min-height: 100px;
+            line-height: 1.6;
+        }
+
+        .query-input:focus { outline: none; background: #fff; }
+        .query-input::placeholder { color: var(--ink-muted); font-style: italic; }
+
+        .query-actions { display: flex; }
+
+        .btn-run {
+            flex: 1;
+            background: var(--red);
+            color: var(--bg);
+            border: 2px solid var(--red);
+            padding: 14px 24px;
+            font-family: inherit;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-run:hover:not(:disabled) { background: var(--red-dark); border-color: var(--red-dark); }
+        .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .btn-cancel {
+            flex: 1;
+            background: var(--ink);
+            color: var(--bg);
+            border: 2px solid var(--ink);
+            padding: 14px 24px;
+            font-family: inherit;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-cancel:hover { background: #2e2e2e; }
+
+        .query-hint {
+            font-size: 10px;
+            color: var(--ink-muted);
+            margin-top: 8px;
+            text-align: right;
+        }
+
+        /* Quick questions */
+        .quick-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .quick-q {
+            background: transparent;
+            border: 1px solid var(--border);
+            padding: 9px 14px;
+            font-family: inherit;
+            font-size: 12px;
+            color: var(--ink-light);
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .quick-q::before {
+            content: '\2192';
+            color: var(--red);
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .quick-q:hover {
+            background: var(--red-light);
+            border-color: var(--red);
+            color: var(--red-dark);
+        }
+
+        /* ─── Right panel ─── */
+        .right-panel { display: flex; flex-direction: column; }
+
+        .panel-block { border: 2px solid var(--border); }
+        .panel-block + .panel-block { border-top: none; }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: var(--bg-alt);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--ink-muted);
+        }
+
+        .panel-meta {
+            font-size: 11px;
+            color: var(--ink-muted);
+        }
+
+        /* Steps */
+        .steps-list { background: var(--bg); }
+
+        .step {
+            border-left: 3px solid var(--ink-muted);
+            padding: 13px 16px;
+            border-bottom: 1px solid var(--border);
+            animation: slide-in 0.2s ease;
+            background: var(--bg);
+        }
+
+        .step:last-child { border-bottom: none; }
+
+        @keyframes slide-in {
+            from { opacity: 0; transform: translateX(-8px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        .step.scan     { border-left-color: #0969da; }
+        .step.parse    { border-left-color: var(--success); }
+        .step.preview  { border-left-color: #8250df; }
+        .step.search   { border-left-color: var(--red); }
+        .step.navigate { border-left-color: var(--warning); }
+
+        .step-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 6px;
+        }
+
+        .step-id { font-size: 11px; font-weight: 600; color: var(--ink-muted); }
+
+        .step-tool {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: var(--bg-alt);
+            color: var(--ink-light);
+            padding: 2px 7px;
+        }
+
+        .step-detail {
+            display: flex;
+            gap: 10px;
+            align-items: baseline;
+            margin-bottom: 3px;
+            font-size: 12px;
+        }
+
+        .step-detail-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--ink-muted);
+            min-width: 46px;
+            flex-shrink: 0;
+        }
+
+        .step-detail-value { color: var(--ink-light); word-break: break-all; }
+
+        .step-reason {
+            font-size: 12px;
+            color: var(--ink-muted);
+            font-style: italic;
+            margin-top: 5px;
+            line-height: 1.5;
+        }
+
+        /* Result */
+        .result-body {
+            padding: 20px;
+            background: var(--bg);
+        }
+
+        .result-text {
+            font-size: 14px;
+            line-height: 1.85;
+            white-space: pre-wrap;
+        }
+
+        .citation {
+            background: var(--red-light);
+            color: var(--red-dark);
+            padding: 1px 6px;
+            font-size: 11px;
+        }
+
+        .sources {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .sources-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--ink-muted);
+            margin-bottom: 10px;
+        }
+
+        .source-item {
+            font-size: 12px;
+            color: var(--ink-light);
+            padding: 3px 0;
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .source-item::before { content: '\25CF'; color: var(--red); font-size: 7px; }
+
+        /* Empty state */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 56px 40px;
+            text-align: center;
+        }
+
+        .empty-prompt {
+            font-family: 'Instrument Serif', serif;
+            font-size: 20px;
+            font-style: italic;
+            color: var(--ink-light);
+            margin-bottom: 8px;
+        }
+
+        .empty-hint { font-size: 12px; color: var(--ink-muted); }
+
+        /* Scrollable */
+        .scrollable { max-height: 380px; overflow-y: auto; }
+
+        .scrollable::-webkit-scrollbar { width: 5px; }
+        .scrollable::-webkit-scrollbar-track { background: var(--bg-alt); }
+        .scrollable::-webkit-scrollbar-thumb { background: var(--border); }
+        .scrollable::-webkit-scrollbar-thumb:hover { background: var(--ink-muted); }
+
+        /* Loading */
+        .loading-text {
+            font-style: italic;
+            color: var(--ink-muted);
+            animation: blink 1.2s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ─── Stats ─── */
+        .stats-bar {
+            margin-top: 32px;
+            border: 2px solid var(--ink);
+            background: var(--bg-alt);
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+        }
+
+        @media (max-width: 768px) {
+            .stats-bar { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        .stat {
+            text-align: center;
+            padding: 14px 8px;
+            border-right: 1px solid var(--border);
+        }
+
+        .stat:last-child { border-right: none; }
+
+        .stat-value {
+            font-family: 'Instrument Serif', serif;
+            font-size: 28px;
+            font-weight: 400;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--ink-muted);
+            margin-top: 3px;
+        }
+
+        /* ─── Human modal ─── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(244, 241, 235, 0.96);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+        }
+
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+
+        .modal {
+            background: var(--bg);
+            border: 2px solid var(--ink);
+            padding: 40px;
+            max-width: 520px;
+            width: 90%;
+            box-shadow: 6px 6px 0 var(--ink);
+        }
+
+        .modal-title {
+            font-family: 'Instrument Serif', serif;
+            font-size: 22px;
+            margin-bottom: 20px;
+        }
+
+        .modal-question {
+            background: var(--bg-alt);
+            border-left: 3px solid var(--red);
+            padding: 14px 16px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .modal-input {
+            width: 100%;
+            background: var(--bg);
+            border: 2px solid var(--ink);
+            padding: 12px 16px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+            margin-bottom: 16px;
+        }
+
+        .modal-input:focus { outline: none; }
+
+        .modal-btn {
+            background: var(--red);
+            color: var(--bg);
+            border: 2px solid var(--red);
+            padding: 12px 24px;
+            font-family: inherit;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.15s;
+        }
+
+        .modal-btn:hover { background: var(--red-dark); border-color: var(--red-dark); }
+
+        .modal-btn.secondary {
+            background: transparent;
+            color: var(--ink);
+            border: 2px solid var(--ink);
+        }
+
+        .modal-btn.secondary:hover { background: var(--ink); color: var(--bg); }
+
+        /* ─── Folder modal ─── */
+        .folder-modal { max-width: 600px; }
+
+        .folder-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .folder-nav-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            font-family: inherit;
+            font-size: 11px;
+            cursor: pointer;
+            color: var(--ink);
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .folder-nav-btn:hover { background: var(--ink); color: var(--bg); }
+        .folder-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .folder-current {
+            font-size: 12px;
+            color: var(--ink-light);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+
+        .folder-list {
+            background: var(--bg-alt);
+            border: 1px solid var(--border);
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .folder-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+            transition: background 0.1s;
+        }
+
+        .folder-item:last-child { border-bottom: none; }
+        .folder-item:hover { background: var(--bg); }
+        .folder-icon { color: var(--red); font-weight: bold; }
+
+        .folder-actions { display: flex; gap: 10px; }
+        .folder-actions .modal-btn { flex: 1; }
+
+        .folder-empty {
+            padding: 24px;
+            text-align: center;
+            color: var(--ink-muted);
+            font-style: italic;
+            font-size: 13px;
+        }
+
+        .folder-info {
+            padding: 8px 14px;
+            font-size: 11px;
+            color: var(--ink-muted);
+            border-top: 1px solid var(--border);
+            background: var(--bg);
+        }
+
+        /* ─── Footer ─── */
+        .footer {
+            margin-top: 48px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 11px;
+            color: var(--ink-muted);
+        }
+
+        .footer-brand {
+            font-family: 'Instrument Serif', serif;
+            font-size: 18px;
+            color: var(--ink);
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+
+        <!-- Masthead -->
+        <header class="masthead">
+            <div class="brand">
+                <div class="brand-name">RedFlag</div>
+                <div class="brand-tagline">Litigation File Intelligence</div>
+            </div>
+            <div class="masthead-right">
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Ready</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Progress -->
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill"></div>
+        </div>
+
+        <!-- Playground -->
+        <div class="playground">
+
+            <!-- Left: Controls -->
+            <div class="left-panel">
+
+                <!-- Source -->
+                <div>
+                    <div class="field-label">Source Documents</div>
+                    <div class="folder-display">
+                        <span class="folder-path" id="currentPath">.</span>
+                        <button class="folder-btn" onclick="openFolderPicker()">Browse</button>
+                    </div>
+                </div>
+
+                <!-- Query -->
+                <div>
+                    <div class="field-label">Query</div>
+                    <textarea
+                        class="query-input"
+                        id="queryInput"
+                        rows="4"
+                        placeholder="What would you like to know about your documents?&#10;e.g. Find all contradictions and inconsistencies"
+                    ></textarea>
+                    <div class="query-actions">
+                        <button class="btn-run" id="queryBtn" onclick="startExploration()">
+                            Run Analysis &#x2192;
+                        </button>
+                        <button class="btn-cancel" id="cancelBtn" onclick="cancelExploration()" style="display:none;">
+                            Cancel
+                        </button>
+                    </div>
+                    <div class="query-hint">Ctrl + Enter to run</div>
+                </div>
+
+                <!-- Quick questions -->
+                <div>
+                    <div class="field-label">Quick Questions</div>
+                    <div class="quick-list">
+                        <button class="quick-q" onclick="setQuery('Find all contradictions and inconsistencies in these documents')">Find all contradictions</button>
+                        <button class="quick-q" onclick="setQuery('What are the key risks in these documents?')">What are the key risks?</button>
+                        <button class="quick-q" onclick="setQuery('Build a complete timeline of all events mentioned in these documents')">Timeline of events</button>
+                        <button class="quick-q" onclick="setQuery('Find any superseded clauses or outdated cross-references in these documents')">Superseded clauses</button>
+                        <button class="quick-q" onclick="setQuery('Are there any date conflicts between documents?')">Date conflicts</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right: Analysis + Findings -->
+            <div class="right-panel">
+
+                <!-- Analysis log -->
+                <div class="panel-block">
+                    <div class="panel-header">
+                        <span class="panel-title">Analysis Log</span>
+                        <span class="panel-meta" id="stepCount">&#x2014;</span>
+                    </div>
+                    <div class="scrollable steps-list" id="stepsList">
+                        <div class="empty-state">
+                            <div class="empty-prompt">Awaiting query...</div>
+                            <div class="empty-hint">Select a folder and enter a question to begin</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Findings -->
+                <div class="panel-block">
+                    <div class="panel-header">
+                        <span class="panel-title">Findings</span>
+                    </div>
+                    <div class="result-body scrollable" id="resultContent">
+                        <div class="empty-state">
+                            <div class="empty-prompt">No findings yet</div>
+                            <div class="empty-hint">Results with citations will appear here</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-bar" id="statsBar" style="display:none;">
+            <div class="stat">
+                <div class="stat-value" id="statSteps">0</div>
+                <div class="stat-label">Steps</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="statScanned">0</div>
+                <div class="stat-label">Scanned</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="statParsed">0</div>
+                <div class="stat-label">Parsed</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="statCalls">0</div>
+                <div class="stat-label">API Calls</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="statTokens">0</div>
+                <div class="stat-label">Tokens</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="statCost">$0</div>
+                <div class="stat-label">Est. Cost</div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <span class="footer-brand">RedFlag</span>
+            <span>Powered by Gemini Flash &middot; Documents parsed with MarkItDown</span>
+        </footer>
+
+    </div>
+
+    <!-- Human input modal -->
+    <div class="modal-overlay" id="humanModal">
+        <div class="modal">
+            <div class="modal-title">Input Required</div>
+            <div class="modal-question" id="modalQuestion"></div>
+            <textarea class="modal-input" id="modalInput" placeholder="Your response..."></textarea>
+            <button class="modal-btn" onclick="submitHumanResponse()">Submit Response</button>
+        </div>
+    </div>
+
+    <!-- Folder picker modal -->
+    <div class="modal-overlay" id="folderModal">
+        <div class="modal folder-modal">
+            <div class="modal-title">Select Source Folder</div>
+            <div class="folder-nav">
+                <button class="folder-nav-btn" id="folderUpBtn" onclick="navigateUp()">&#x2191; Parent</button>
+                <span class="folder-current" id="folderModalPath">.</span>
+            </div>
+            <div class="folder-list" id="folderList">
+                <div class="loading-text" style="padding:20px;">Loading...</div>
+            </div>
+            <div class="folder-actions">
+                <button class="modal-btn secondary" onclick="closeFolderPicker()">Cancel</button>
+                <button class="modal-btn" onclick="selectCurrentFolder()">Select This Folder</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API base URL — set to your VPS domain in production, or empty for same-host.
+        const API_BASE = 'https://api.redflag-ai.com';
+
+        // State
+        let ws = null;
+        let stepCount = 0;
+        let isRunning = false;
+        let currentFolder = '.';
+        let browsingPath = '.';
+
+        // Tool -> step colour class
+        const toolStyles = {
+            scan_folder:  'scan',
+            preview_file: 'preview',
+            parse_file:   'parse',
+            read:         'preview',
+            grep:         'search',
+            glob:         'search',
+        };
+
+        // Element refs
+        const queryInput    = document.getElementById('queryInput');
+        const queryBtn      = document.getElementById('queryBtn');
+        const cancelBtn     = document.getElementById('cancelBtn');
+        const stepsList     = document.getElementById('stepsList');
+        const stepCountEl   = document.getElementById('stepCount');
+        const resultContent = document.getElementById('resultContent');
+        const statsBar      = document.getElementById('statsBar');
+        const progressBar   = document.getElementById('progressBar');
+        const statusDot     = document.getElementById('statusDot');
+        const statusText    = document.getElementById('statusText');
+        const humanModal    = document.getElementById('humanModal');
+        const folderModal   = document.getElementById('folderModal');
+        const folderList    = document.getElementById('folderList');
+        const folderModalPath = document.getElementById('folderModalPath');
+        const folderUpBtn   = document.getElementById('folderUpBtn');
+        const currentPathEl = document.getElementById('currentPath');
+
+        // Set a quick question
+        function setQuery(q) {
+            queryInput.value = q;
+            queryInput.focus();
+        }
+
+        // Ctrl/Cmd + Enter to run
+        queryInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !isRunning) startExploration();
+        });
+
+        // ─── Start exploration ───
+        function startExploration() {
+            const query = queryInput.value.trim();
+            if (!query || isRunning) return;
+
+            if (ws) { ws.close(); ws = null; }
+
+            isRunning = true;
+            stepCount = 0;
+            queryBtn.style.display = 'none';
+            cancelBtn.style.display = 'block';
+
+            stepsList.innerHTML = '<div class="empty-state"><div class="empty-prompt">Processing...</div><div class="empty-hint">Analyzing documents</div></div>';
+            resultContent.innerHTML = '<div class="empty-state"><div class="loading-text">Running analysis...</div></div>';
+            statsBar.style.display = 'none';
+            progressBar.classList.add('active');
+            stepCountEl.textContent = '\u2014';
+
+            updateStatus('Connecting', 'active');
+
+            const wsHost     = API_BASE ? API_BASE.replace(/^https?:\/\//, '') : window.location.host;
+            const wsProtocol = (API_BASE.startsWith('https') || window.location.protocol === 'https:') ? 'wss' : 'ws';
+            ws = new WebSocket(wsProtocol + '://' + wsHost + '/ws/explore');
+
+            ws.onopen = () => {
+                updateStatus('Analyzing', 'active');
+                ws.send(JSON.stringify({ task: query, folder: currentFolder }));
+            };
+
+            ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
+            ws.onerror   = () => { showError('Connection failed. Is the server running?'); finish(); };
+            ws.onclose   = () => finish();
+        }
+
+        // ─── Message handler ───
+        function handleMessage(msg) {
+            switch (msg.type) {
+                case 'tool_call':  addStep(msg.data);            break;
+                case 'go_deeper':  addNavStep(msg.data);         break;
+                case 'ask_human':  showHumanModal(msg.data);     break;
+                case 'complete':   showResult(msg.data);         break;
+                case 'error':      showError(msg.data.message);  break;
+            }
+        }
+
+        // ─── Add step ───
+        function addStep(data) {
+            if (data.step === 1 && stepsList.querySelector('.empty-state')) {
+                stepsList.innerHTML = '';
+            }
+
+            stepCount = data.step;
+            stepCountEl.textContent = stepCount + ' ' + (stepCount === 1 ? 'step' : 'steps');
+
+            const style = toolStyles[data.tool_name] || 'preview';
+            const inp   = data.tool_input;
+
+            const detailFields = [
+                inp.directory    && { label: 'dir',     value: inp.directory },
+                inp.file_path    && { label: 'file',    value: inp.file_path },
+                inp.pattern      && { label: 'pattern', value: inp.pattern },
+                inp.query        && { label: 'query',   value: inp.query },
+                inp.glob_pattern && { label: 'glob',    value: inp.glob_pattern },
+                inp.path         && { label: 'path',    value: inp.path },
+                inp.regex        && { label: 'regex',   value: inp.regex },
+            ].filter(Boolean);
+
+            const detailsHtml = detailFields.map(function(f) {
+                return '<div class="step-detail"><span class="step-detail-label">' + f.label + '</span><span class="step-detail-value">' + esc(f.value) + '</span></div>';
+            }).join('');
+
+            stepsList.insertAdjacentHTML('beforeend',
+                '<div class="step ' + style + '">' +
+                    '<div class="step-header">' +
+                        '<span class="step-id">#' + data.step + '</span>' +
+                        '<span class="step-tool">' + esc(data.tool_name) + '</span>' +
+                    '</div>' +
+                    detailsHtml +
+                    '<div class="step-reason">' + esc(data.reason) + '</div>' +
+                '</div>'
+            );
+            stepsList.scrollTop = stepsList.scrollHeight;
+        }
+
+        // ─── Add navigate step ───
+        function addNavStep(data) {
+            if (data.step === 1 && stepsList.querySelector('.empty-state')) {
+                stepsList.innerHTML = '';
+            }
+
+            stepCount = data.step;
+            stepCountEl.textContent = stepCount + ' ' + (stepCount === 1 ? 'step' : 'steps');
+
+            stepsList.insertAdjacentHTML('beforeend',
+                '<div class="step navigate">' +
+                    '<div class="step-header">' +
+                        '<span class="step-id">#' + data.step + '</span>' +
+                        '<span class="step-tool">navigate</span>' +
+                    '</div>' +
+                    '<div class="step-detail">' +
+                        '<span class="step-detail-label">dir</span>' +
+                        '<span class="step-detail-value">' + esc(data.directory) + '</span>' +
+                    '</div>' +
+                    '<div class="step-reason">' + esc(data.reason) + '</div>' +
+                '</div>'
+            );
+            stepsList.scrollTop = stepsList.scrollHeight;
+        }
+
+        // ─── Human modal ───
+        function showHumanModal(data) {
+            document.getElementById('modalQuestion').textContent = data.question;
+            document.getElementById('modalInput').value = '';
+            humanModal.classList.add('active');
+            updateStatus('Awaiting input', 'active');
+        }
+
+        function submitHumanResponse() {
+            const response = document.getElementById('modalInput').value.trim();
+            if (!response) return;
+            humanModal.classList.remove('active');
+            ws.send(JSON.stringify({ type: 'human_response', response: response }));
+            updateStatus('Analyzing', 'active');
+        }
+
+        // ─── Show result ───
+        function showResult(data) {
+            if (data.error) { showError(data.error); return; }
+
+            let text = data.final_result || 'No result';
+
+            const sourcesSet = new Set();
+            text.replace(/\[Source:\s*([^,\]]+)/g, function(_, file) { sourcesSet.add(file.trim()); });
+
+            text = text.replace(/\[Source:[^\]]+\]/g, function(m) {
+                return '<span class="citation">' + esc(m) + '</span>';
+            });
+
+            let sourcesHtml = '';
+            if (sourcesSet.size > 0) {
+                const items = Array.from(sourcesSet).map(function(f) {
+                    return '<div class="source-item">' + esc(f) + '</div>';
+                }).join('');
+                sourcesHtml = '<div class="sources"><div class="sources-title">Files Referenced (' + sourcesSet.size + ')</div>' + items + '</div>';
+            }
+
+            resultContent.innerHTML = '<div class="result-text">' + text + '</div>' + sourcesHtml;
+
+            const s = data.stats;
+            if (s) {
+                statsBar.style.display = 'grid';
+                document.getElementById('statSteps').textContent   = s.steps;
+                document.getElementById('statScanned').textContent = s.documents_scanned;
+                document.getElementById('statParsed').textContent  = s.documents_parsed;
+                document.getElementById('statCalls').textContent   = s.api_calls;
+                document.getElementById('statTokens').textContent  = formatNum(s.total_tokens);
+                document.getElementById('statCost').textContent    = '$' + s.estimated_cost.toFixed(4);
+            }
+
+            updateStatus('Complete', '');
+        }
+
+        // ─── Show error ───
+        function showError(msg) {
+            resultContent.innerHTML =
+                '<div class="empty-state">' +
+                    '<div class="empty-prompt" style="color:var(--red)">Error</div>' +
+                    '<div class="empty-hint">' + esc(msg) + '</div>' +
+                '</div>';
+            updateStatus('Error', 'error');
+        }
+
+        // ─── Cancel ───
+        function cancelExploration() {
+            if (!isRunning) return;
+            if (ws) {
+                try { ws.send(JSON.stringify({ type: 'cancel' })); } catch (e) { /* ignore */ }
+                ws.close();
+                ws = null;
+            }
+            resultContent.innerHTML =
+                '<div class="empty-state">' +
+                    '<div class="empty-prompt">Cancelled</div>' +
+                    '<div class="empty-hint">Query was cancelled by user</div>' +
+                '</div>';
+            updateStatus('Cancelled', '');
+            finish();
+        }
+
+        function finish() {
+            isRunning = false;
+            queryBtn.style.display = 'block';
+            cancelBtn.style.display = 'none';
+            progressBar.classList.remove('active');
+            if (ws) { ws.close(); ws = null; }
+        }
+
+        function updateStatus(text, state) {
+            statusText.textContent = text;
+            statusDot.className = 'status-dot' + (state ? ' ' + state : '');
+        }
+
+        function esc(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function formatNum(n) {
+            if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+            if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+            return n;
+        }
+
+        // ─── Folder picker ───
+        async function openFolderPicker() {
+            folderModal.classList.add('active');
+            browsingPath = currentFolder;
+            await loadFolders(browsingPath);
+        }
+
+        function closeFolderPicker() { folderModal.classList.remove('active'); }
+
+        async function loadFolders(path) {
+            folderList.innerHTML = '<div class="loading-text" style="padding:20px;">Loading...</div>';
+            try {
+                const res  = await fetch(API_BASE + '/api/folders?path=' + encodeURIComponent(path));
+                const data = await res.json();
+
+                if (data.error) {
+                    folderList.innerHTML = '<div class="folder-empty">' + esc(data.error) + '</div>';
+                    return;
+                }
+
+                browsingPath = data.current;
+                folderModalPath.textContent = data.current;
+                folderUpBtn.disabled = !data.parent;
+
+                if (data.folders.length === 0) {
+                    folderList.innerHTML = '<div class="folder-empty">No subfolders in this directory</div>';
+                } else {
+                    folderList.innerHTML = data.folders.map(function(name) {
+                        return '<div class="folder-item" onclick="navigateToFolder(\'' + esc(name) + '\')">' +
+                               '<span class="folder-icon">&#x25B8;</span>' +
+                               '<span>' + esc(name) + '</span>' +
+                               '</div>';
+                    }).join('');
+                }
+
+                if (data.files_count !== undefined) {
+                    folderList.innerHTML += '<div class="folder-info">' + data.files_count + ' file(s) in this folder</div>';
+                }
+            } catch (e) {
+                folderList.innerHTML = '<div class="folder-empty">Error: ' + esc(e.message) + '</div>';
+            }
+        }
+
+        async function navigateToFolder(name) {
+            const newPath = browsingPath === '.' ? name : browsingPath + '/' + name;
+            await loadFolders(newPath);
+        }
+
+        async function navigateUp() {
+            const res  = await fetch(API_BASE + '/api/folders?path=' + encodeURIComponent(browsingPath));
+            const data = await res.json();
+            if (data.parent) await loadFolders(data.parent);
+        }
+
+        function selectCurrentFolder() {
+            currentFolder = browsingPath;
+            currentPathEl.textContent = currentFolder;
+            closeFolderPicker();
+        }
+
+        // Init — load current folder path
+        (async function init() {
+            try {
+                const res  = await fetch(API_BASE + '/api/folders?path=.');
+                const data = await res.json();
+                if (data.current) {
+                    currentFolder = data.current;
+                    currentPathEl.textContent = currentFolder;
+                }
+            } catch (e) {
+                console.error('Failed to get initial folder:', e);
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -24,7 +24,7 @@ This system uses a **multi-phase strategy**:
 ## Features
 
 - 🔍 **7 Tools**: `scan_folder`, `preview_file`, `parse_file`, `read_section`, `read`, `grep`, `glob`
-- 📄 **Document Support**: PDF, DOCX, PPTX, XLSX, HTML, Markdown (via Docling)
+- 📄 **Document Support**: PDF, DOCX, PPTX, XLSX, HTML, Markdown, CSV, JSON, XML (via MarkItDown)
 - 🤖 **Multi-Provider LLM**: Groq (Llama 4 Scout, Llama 3.3 70B) + Google Gemini 3 Flash
 - 🧠 **Query Router**: Classifies questions into 8 types (point lookup, risk analysis, timeline, comparison, compliance, summary, relationship, general) with optimized strategies per type
 - 📐 **Document Hierarchy**: Automatically detects master agreements → amendments → schedules → exhibits
@@ -130,7 +130,7 @@ User Query
 │ Citation Verifier│ → Checks claims against source docs
 └──────────────────┘
          ↓
-   Document Parser (Docling - local, no cloud upload)
+   Document Parser (MarkItDown - local, no cloud upload)
 ```
 
 See [documentation/ARCHITECTURE.md](documentation/ARCHITECTURE.md) for detailed diagrams.
@@ -159,7 +159,7 @@ uv run explore --task "Look in data/large_acquisition/. What happens to employee
 | Component | Technology |
 |-----------|------------|
 | LLM | Groq (Llama 4 Scout / 3.3 70B) + Google Gemini 3 Flash |
-| Document Parsing | Docling (local, open-source) |
+| Document Parsing | MarkItDown (local, MIT license) |
 | Orchestration | LlamaIndex Workflows |
 | Query Routing | Pattern-based classifier (8 strategy types) |
 | CLI | Typer + Rich |
@@ -227,7 +227,7 @@ MIT
 ## Acknowledgments
 
 - Original concept from [run-llama/fs-explorer](https://github.com/run-llama/fs-explorer)
-- Document parsing by [Docling](https://github.com/DS4SD/docling)
+- Document parsing by [MarkItDown](https://github.com/microsoft/markitdown)
 - Powered by [Google Gemini](https://deepmind.google/technologies/gemini/)
 
 ## Star History

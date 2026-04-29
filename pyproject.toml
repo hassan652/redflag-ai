@@ -9,7 +9,7 @@ description = "Explore and understand your filesystem better with AI."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "docling>=2.55.0",
+    "markitdown[pdf,docx,pptx,xlsx]>=0.1.5",
     "fastapi>=0.115.0",
     "google-genai>=1.55.0",
     "groq>=0.25.0",
