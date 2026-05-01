@@ -6,6 +6,8 @@ exploration of the filesystem, handling tool calls, directory navigation,
 and human interaction.
 """
 
+from contextvars import ContextVar
+
 from workflows import Workflow, Context, step
 from workflows.events import (
     StartEvent,
@@ -30,33 +32,37 @@ from .workspace import (
 )
 from .verifier import verify_answer_async
 
-# Lazy agent initialization - created on first access
-_AGENT: FsExplorerAgent | None = None
-_AGENT_PROVIDER: str = "openrouter"
-_AGENT_MODEL: str | None = "openai/gpt-5.4-mini"
-_AGENT_API_KEY: str | None = None
+# Request-scoped agent/provider state. Each async task gets its own agent so
+# concurrent websocket sessions do not share chat history or reset each other.
+_AGENT: ContextVar[FsExplorerAgent | None] = ContextVar("workflow_agent", default=None)
+_AGENT_PROVIDER: ContextVar[str] = ContextVar("workflow_agent_provider", default="openrouter")
+_AGENT_MODEL: ContextVar[str | None] = ContextVar("workflow_agent_model", default="openai/gpt-5.4-mini")
+_AGENT_API_KEY: ContextVar[str | None] = ContextVar("workflow_agent_api_key", default=None)
 
 
 def set_provider(provider: str, model: str | None = None, api_key: str | None = None) -> None:
     """Set the LLM provider, model, and API key for the next agent creation."""
-    global _AGENT_PROVIDER, _AGENT_MODEL, _AGENT_API_KEY
-    _AGENT_PROVIDER = provider
-    _AGENT_MODEL = model
-    _AGENT_API_KEY = api_key
+    _AGENT_PROVIDER.set(provider)
+    _AGENT_MODEL.set(model)
+    _AGENT_API_KEY.set(api_key)
 
 
 def get_agent() -> FsExplorerAgent:
-    """Get or create the singleton agent instance."""
-    global _AGENT
-    if _AGENT is None:
-        _AGENT = FsExplorerAgent(provider=_AGENT_PROVIDER, model=_AGENT_MODEL, api_key=_AGENT_API_KEY)
-    return _AGENT
+    """Get or create the current request's agent instance."""
+    agent = _AGENT.get()
+    if agent is None:
+        agent = FsExplorerAgent(
+            provider=_AGENT_PROVIDER.get(),
+            model=_AGENT_MODEL.get(),
+            api_key=_AGENT_API_KEY.get(),
+        )
+        _AGENT.set(agent)
+    return agent
 
 
 def reset_agent() -> None:
-    """Reset the agent instance (useful for testing)."""
-    global _AGENT
-    _AGENT = None
+    """Reset the current request's agent instance (useful for testing)."""
+    _AGENT.set(None)
     reset_workspace_context()
 
 
